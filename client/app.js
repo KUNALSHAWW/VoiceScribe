@@ -44,7 +44,7 @@ class VoiceScribe {
         
         // Production URL
         // REPLACE THIS WITH YOUR ACTUAL DEPLOYED WORKER URL
-        return 'wss://voicescribe-worker.YOUR_SUBDOMAIN.workers.dev/ws';
+        return 'wss://voicescribe.workers.dev/ws';
     }
 
     init() {
