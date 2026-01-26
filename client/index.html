@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Real-time speech-to-text transcription powered by Soniox AI. Premium voice recording with live visualization.">
+    <title>VoiceScribe | Real-time AI Transcription</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Ambient Background Effects -->
+        <div class="ambient-orb ambient-orb--primary"></div>
+        <div class="ambient-orb ambient-orb--secondary"></div>
+        <div class="grid-overlay"></div>
+
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <div class="logo__icon">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2C10.9 2 10 2.9 10 4V12C10 13.1 10.9 14 12 14C13.1 14 14 13.1 14 12V4C14 2.9 13.1 2 12 2Z" fill="url(#mic-gradient)"/>
+                        <path d="M17 10V12C17 14.76 14.76 17 12 17C9.24 17 7 14.76 7 12V10H5V12C5 15.53 7.61 18.43 11 18.92V22H13V18.92C16.39 18.43 19 15.53 19 12V10H17Z" fill="url(#mic-gradient)"/>
+                        <defs>
+                            <linearGradient id="mic-gradient" x1="5" y1="2" x2="19" y2="22" gradientUnits="userSpaceOnUse">
+                                <stop stop-color="#A855F7"/>
+                                <stop offset="1" stop-color="#6366F1"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                </div>
+                <span class="logo__text">VoiceScribe</span>
+            </div>
+            <div class="header__status">
+                <span class="status-indicator" id="connectionStatus"></span>
+                <span class="status-text" id="connectionText">Ready</span>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Recording Section -->
+            <section class="recording-section">
+                <div class="recording-card">
+                    <h1 class="recording-card__title">Real-time Transcription</h1>
+                    <p class="recording-card__subtitle">Click to start recording. Speak clearly into your microphone.</p>
+
+                    <!-- Audio Visualizer -->
+                    <div class="visualizer-container">
+                        <canvas id="audioVisualizer" class="audio-visualizer"></canvas>
+                        <div class="visualizer-ring visualizer-ring--outer"></div>
+                        <div class="visualizer-ring visualizer-ring--inner"></div>
+                    </div>
+
+                    <!-- Record Button -->
+                    <button id="recordBtn" class="record-button" aria-label="Start Recording">
+                        <div class="record-button__glow"></div>
+                        <div class="record-button__inner">
+                            <svg class="record-button__icon record-button__icon--mic" viewBox="0 0 24 24" fill="none">
+                                <path d="M12 2C10.9 2 10 2.9 10 4V12C10 13.1 10.9 14 12 14C13.1 14 14 13.1 14 12V4C14 2.9 13.1 2 12 2Z" fill="currentColor"/>
+                                <path d="M17 10V12C17 14.76 14.76 17 12 17C9.24 17 7 14.76 7 12V10H5V12C5 15.53 7.61 18.43 11 18.92V22H13V18.92C16.39 18.43 19 15.53 19 12V10H17Z" fill="currentColor"/>
+                            </svg>
+                            <svg class="record-button__icon record-button__icon--stop" viewBox="0 0 24 24" fill="none">
+                                <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/>
+                            </svg>
+                        </div>
+                    </button>
+
+                    <!-- Recording Timer -->
+                    <div class="recording-timer" id="recordingTimer">
+                        <span class="timer-dot"></span>
+                        <span class="timer-text">00:00</span>
+                    </div>
+
+                    <!-- Status Message -->
+                    <p class="status-message" id="statusMessage">Press the button to start recording</p>
+                </div>
+            </section>
+
+            <!-- Transcript Section -->
+            <section class="transcript-section">
+                <div class="transcript-card">
+                    <div class="transcript-card__header">
+                        <h2 class="transcript-card__title">
+                            <svg viewBox="0 0 24 24" fill="none" class="transcript-icon">
+                                <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M16 13H8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                <path d="M16 17H8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                            Transcript
+                        </h2>
+                        <button id="copyBtn" class="copy-button" aria-label="Copy transcript" disabled>
+                            <svg viewBox="0 0 24 24" fill="none">
+                                <rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="2"/>
+                                <path d="M5 15H4C2.89543 15 2 14.1046 2 13V4C2 2.89543 2.89543 2 4 2H13C14.1046 2 15 2.89543 15 4V5" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                            <span>Copy</span>
+                        </button>
+                    </div>
+                    <div class="transcript-content" id="transcriptContent">
+                        <div class="transcript-placeholder">
+                            <svg viewBox="0 0 24 24" fill="none" class="placeholder-icon">
+                                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" stroke-dasharray="4 4"/>
+                                <path d="M12 8V12L14 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                            <p>Your transcript will appear here...</p>
+                        </div>
+                    </div>
+                    <div class="transcript-footer" id="transcriptFooter">
+                        <span class="word-count" id="wordCount">0 words</span>
+                        <span class="char-count" id="charCount">0 characters</span>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>Powered by <strong>Soniox AI</strong> • Real-time Speech Recognition</p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
