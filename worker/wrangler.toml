@@ -1,13 +1,6 @@
 name = "voicescribe-worker"
 main = "src/index.js"
 compatibility_date = "2024-09-23"
-
-# This allows you to use the variable in your code
-[vars]
-# You can put a placeholder here, but for local dev 
-# you should use .dev.vars (explained below)
-# Compatibility flags for WebSocket support
-# This enables the Worker to make outbound WebSocket connections to Soniox
 compatibility_flags = ["nodejs_compat"]
 
 # Development settings

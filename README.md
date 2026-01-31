@@ -127,8 +127,8 @@ VoiceScribe/
 ### 1. Clone & Install
 
 ```bash
-git clone https://github.com/yourname/voicescribe.git
-cd voicescribe
+git clone https://github.com/KUNALSHAWW/VoiceScribe.git
+cd VoiceScribe
 
 # Install worker dependencies
 cd worker && npm install && cd ..

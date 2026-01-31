@@ -148,6 +148,8 @@ async function handleClientBinary(data, state) {
 async function connectToSoniox(clientWs, state, env) {
     return new Promise((resolve, reject) => {
         console.log('[Worker] Connecting to Soniox...');
+        console.log('[Worker] API Key present:', !!env.SONIOX_API_KEY);
+        console.log('[Worker] API Key length:', env.SONIOX_API_KEY?.length || 0);
         
         try {
             state.sonioxWs = new WebSocket(SONIOX_WS_URL);
@@ -174,12 +176,14 @@ async function connectToSoniox(clientWs, state, env) {
                 include_nonfinal: true
             };
             
+            console.log('[Worker] Sending config (api_key hidden):', { ...config, api_key: '***' });
             safeSend(state.sonioxWs, JSON.stringify(config));
             safeSend(clientWs, JSON.stringify({ type: 'connected' }));
             resolve();
         });
 
         state.sonioxWs.addEventListener('message', (event) => {
+            console.log('[Worker] Soniox message received:', typeof event.data === 'string' ? event.data.substring(0, 200) : 'binary');
             handleSonioxMessage(event.data, clientWs, state);
         });
 
@@ -197,7 +201,7 @@ async function connectToSoniox(clientWs, state, env) {
         });
 
         state.sonioxWs.addEventListener('error', (e) => {
-            console.error('[Worker] Soniox error:', e);
+            console.error('[Worker] Soniox WebSocket error event:', e.message || e);
         });
 
         // Timeout for connection
@@ -205,6 +209,10 @@ async function connectToSoniox(clientWs, state, env) {
             if (state.sonioxWs && state.sonioxWs.readyState === WebSocket.CONNECTING) {
                 console.error('[Worker] Soniox connection timeout');
                 state.sonioxWs.close();
+                safeSend(clientWs, JSON.stringify({ 
+                    type: 'error', 
+                    message: 'Connection to transcription service timed out' 
+                }));
                 reject(new Error('Connection timeout'));
             }
         }, 10000);

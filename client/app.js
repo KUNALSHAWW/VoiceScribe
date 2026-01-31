@@ -88,8 +88,8 @@ class VoiceScribe {
      * Initialize application
      */
     async init() {
-        this.recordBtn.addEventListener('click', () => this.toggleRecording());
-        this.copyBtn.addEventListener('click', () => this.copyTranscript());
+        this.recordBtn?.addEventListener('click', () => this.toggleRecording());
+        this.copyBtn?.addEventListener('click', () => this.copyTranscript());
         
         if (this.audioVisualizer) {
             this.setupCanvas();
@@ -98,10 +98,10 @@ class VoiceScribe {
         
         this.updateStatus('Ready to record', 'ready');
 
-        // Check AudioWorklet support
+        // Check AudioWorklet support (safely without accessing prototype accessor)
         this.useWorklet = typeof AudioWorkletNode !== 'undefined' && 
                           typeof AudioContext !== 'undefined' &&
-                          typeof AudioContext.prototype.audioWorklet !== 'undefined';
+                          'audioWorklet' in AudioContext.prototype;
         
         if (!this.useWorklet) {
             console.warn('[Client] AudioWorklet not supported, will use ScriptProcessorNode fallback');
@@ -472,6 +472,7 @@ class VoiceScribe {
      * Handle messages from Worker
      */
     handleWorkerMessage(data) {
+        console.log('[Client] Received message from worker:', data);
         try {
             const msg = JSON.parse(data);
             
@@ -490,7 +491,8 @@ class VoiceScribe {
                     break;
                     
                 case 'connected':
-                    console.log('[Client] Worker confirmed connection');
+                    console.log('[Client] Worker confirmed connection to Soniox');
+                    this.updateStatus('Connected - Recording...', 'recording');
                     break;
                     
                 default:
