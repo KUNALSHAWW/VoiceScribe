@@ -1,4 +1,16 @@
 {
+  "name": "voicescribe",
+  "version": "2.0.0",
+  "description": "Real-time speech transcription with AudioWorklet and Cloudflare Workers",
+  "main": "test/test_integration.js",
+  "scripts": {
+    "test": "node test/test_integration.js",
+    "dev": "cd worker && npm run dev",
+    "deploy": "cd worker && npm run deploy"
+  },
+  "dependencies": {
+    "ws": "^8.14.2"
+  },
   "devDependencies": {
     "wrangler": "^4.60.0"
   }

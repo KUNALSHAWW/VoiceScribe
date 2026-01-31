@@ -11,78 +11,82 @@
 
 *Transform your voice into text instantly with enterprise-grade accuracy*
 
-[Live Demo](#-quick-start) • [Features](#-features) • [Documentation](#-documentation) • [Deploy](#-deployment)
-
-<img src="https://via.placeholder.com/800x400/0a0a0f/8b5cf6?text=VoiceScribe+Real-time+Transcription" alt="VoiceScribe Banner" width="100%"/>
-
 </div>
 
 ---
 
 ## 🌟 Overview
 
-**VoiceScribe** is a production-ready, real-time speech transcription application that combines cutting-edge AI with modern web technologies. Built on Cloudflare's edge network and powered by Soniox's advanced speech recognition engine, it delivers sub-second latency transcription with a stunning, glassmorphic UI.
+**VoiceScribe** is a production-ready, real-time speech transcription application using:
+- **AudioWorklet** for raw PCM audio capture in the browser
+- **Cloudflare Workers** as an edge proxy to Soniox
+- **Soniox Speech API** for high-accuracy transcription
 
-### Why VoiceScribe?
+### Key Features
 
-- ⚡ **Lightning Fast** - Edge-optimized architecture with <100ms latency
-- 🎯 **High Accuracy** - Powered by Soniox's state-of-the-art STT models
-- 🎨 **Premium Design** - Radiant violet/indigo dark theme with smooth animations
-- 🔒 **Secure by Design** - API keys never leave the edge, zero client exposure
-- 📱 **Fully Responsive** - Optimized for desktop, tablet, and mobile devices
-
----
-
-## ✨ Features
-
-<table>
-<tr>
-<td width="50%">
-
-### 🎙️ Core Capabilities
-- **Real-time Streaming** - See text appear as you speak
-- **Live Audio Visualization** - Circular frequency analyzer
-- **Interim Results** - Watch transcription evolve in real-time
-- **One-Click Copy** - Instant clipboard integration
-- **Word/Character Counting** - Live statistics tracking
-
-</td>
-<td width="50%">
-
-### 🛠️ Technical Excellence
-- **WebSocket Streaming** - Bidirectional audio/text flow
-- **Edge Computing** - Cloudflare Workers for global reach
-- **Opus Encoding** - High-quality, bandwidth-efficient audio
-- **Error Resilience** - Graceful degradation & recovery
-- **Zero Dependencies** - Vanilla JS for maximum performance
-
-</td>
-</tr>
-</table>
+- ⚡ **Low Latency** - Raw PCM streaming with AudioWorklet (~50ms buffer)
+- 🎯 **High Accuracy** - Soniox's state-of-the-art speech recognition
+- 🎨 **Elegant UI** - Black/white glossy radiant theme
+- 🔒 **Secure** - API keys never exposed to client
+- 📱 **Cross-Browser** - AudioWorklet with ScriptProcessor fallback
 
 ---
 
 ## 🏗️ Architecture
 
-```mermaid
-graph LR
-    A[Browser Client] -->|WebSocket| B[Cloudflare Worker]
-    B -->|WebSocket| C[Soniox API]
-    C -->|Transcription| B
-    B -->|Real-time Text| A
-    
-    style A fill:#8b5cf6,stroke:#6366f1,stroke-width:2px,color:#fff
-    style B fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
-    style C fill:#6366f1,stroke:#4f46e5,stroke-width:2px,color:#fff
+```
+┌─────────────┐     WebSocket      ┌──────────────────┐     WebSocket      ┌─────────────┐
+│   Browser   │ ──────────────────▶│ Cloudflare Worker│ ──────────────────▶│   Soniox    │
+│ (AudioWorklet)                   │  (Edge Proxy)    │                    │  Speech API │
+│             │ ◀──────────────────│                  │ ◀──────────────────│             │
+│  PCM 16kHz  │  partial_transcript│  Forward PCM     │   Transcription    │             │
+│   Int16     │  full_transcript   │  Aggregate final │     Results        │             │
+└─────────────┘                    └──────────────────┘                    └─────────────┘
 ```
 
 ### Data Flow
 
-1. **Audio Capture** - Browser MediaRecorder captures microphone input (16kHz, mono, Opus)
-2. **Edge Proxying** - Worker forwards audio chunks to Soniox via WebSocket
-3. **AI Processing** - Soniox transcribes audio in real-time
-4. **Live Streaming** - Transcription results stream back through the worker
-5. **UI Rendering** - Client displays interim and final transcripts instantly
+1. **Audio Capture** - Browser captures microphone via AudioWorklet (or ScriptProcessor fallback)
+2. **Client Processing** - Downsample to 16kHz, convert Float32 to Int16 PCM
+3. **WebSocket Streaming** - Binary PCM frames sent to Cloudflare Worker
+4. **Edge Proxy** - Worker forwards PCM to Soniox, relays transcripts to client
+5. **Aggregation** - Worker aggregates final segments, sends consolidated transcript on stop
+
+### WebSocket Protocol
+
+**Client → Worker:**
+```javascript
+// Start session
+{ "type": "start", "session_id": "uuid" }
+
+// Binary PCM frames (16kHz, 16-bit, mono)
+ArrayBuffer
+
+// Stop recording
+{ "type": "finalize" }
+```
+
+**Worker → Client:**
+```javascript
+// Partial transcript (incremental)
+{ 
+  "type": "partial_transcript",
+  "text": "Hello world...",
+  "segments": [...],
+  "stats": { "partial_count": 5 }
+}
+
+// Full transcript (on finalize)
+{
+  "type": "full_transcript",
+  "transcript": "Full transcribed text...",
+  "segments": [
+    { "start": 0.12, "end": 1.74, "text": "...", "confidence": 0.92, "speaker": "speaker_1" }
+  ],
+  "duration": 12.34,
+  "stats": { "partial_count": 7, "duration_s": 12.34 }
+}
+```
 
 ---
 
@@ -90,21 +94,24 @@ graph LR
 
 ```
 VoiceScribe/
-│
 ├── client/                      # Frontend Application
-│   ├── index.html              # Main HTML structure
-│   ├── style.css               # Premium dark-mode styling
-│   └── app.js                  # Client-side WebSocket logic
+│   ├── index.html              # Main HTML
+│   ├── style.css               # Black/white glossy theme
+│   ├── app.js                  # AudioWorklet client logic
+│   └── pcm-worklet.js          # AudioWorkletProcessor
 │
 ├── worker/                      # Cloudflare Edge Worker
-│   ├── src/
-│   │   └── index.js            # WebSocket proxy handler
+│   ├── src/index.js            # WebSocket proxy to Soniox
 │   ├── wrangler.toml           # Worker configuration
-│   └── package.json            # Dependencies
+│   └── .dev.vars               # Local secrets (gitignored)
 │
-├── .gitignore                  # Git exclusions
-├── LICENSE                     # MIT License
-└── README.md                   # This file
+├── test/                        # Integration Tests
+│   ├── test_integration.js     # Main test runner
+│   ├── fixtures/               # Test audio files
+│   └── mocks/                  # Soniox mock server
+│
+├── .env.example                 # Environment template
+└── README.md                    # This file
 ```
 
 ---
@@ -113,331 +120,184 @@ VoiceScribe/
 
 ### Prerequisites
 
-Ensure you have the following installed:
+- Node.js 18+
+- Cloudflare account (free tier works)
+- Soniox API key ([get one here](https://console.soniox.com))
 
-- **Node.js** v18+ ([Download](https://nodejs.org/))
-- **npm** or **yarn**
-- **Soniox API Key** ([Get Free Key](https://soniox.com/))
-
-### Installation
-
-**1. Clone the Repository**
+### 1. Clone & Install
 
 ```bash
-git clone https://github.com/KUNALSHAWW/VoiceScribe.git
-cd VoiceScribe
+git clone https://github.com/yourname/voicescribe.git
+cd voicescribe
+
+# Install worker dependencies
+cd worker && npm install && cd ..
+
+# Install test dependencies (optional)
+npm install ws
 ```
 
-**2. Install Worker Dependencies**
+### 2. Configure Secrets
 
 ```bash
+# For local development
+echo "SONIOX_API_KEY=your_api_key" > worker/.dev.vars
+
+# For production (run from worker directory)
 cd worker
-npm install
+npx wrangler secret put SONIOX_API_KEY
 ```
 
-**3. Configure Environment**
-
-Create a `.dev.vars` file in the `worker/` directory:
-
-```env
-SONIOX_API_KEY=your_actual_api_key_here
-```
-
-**4. Start the Development Server**
+### 3. Run Locally
 
 ```bash
+# Terminal 1: Start worker
+cd worker
 npm run dev
+# Worker runs at http://localhost:8787
+
+# Terminal 2: Serve client (any static server)
+cd client
+npx serve .
+# Or: python -m http.server 8080
 ```
 
-The worker will start at `http://localhost:8787`
+### 4. Open in Browser
 
-**5. Launch the Client**
+Navigate to `http://localhost:8080` (or wherever you served the client).
 
-Open `client/index.html` in your browser, or serve it locally:
+---
+
+## 🧪 Testing
+
+### Run Integration Tests
 
 ```bash
-# Using Python
-cd ../client
-python -m http.server 3000
+# Make sure worker is running first
+cd worker && npm run dev &
 
-# Using Node.js http-server
-npx http-server -p 3000
+# Run tests
+node test/test_integration.js
 ```
 
-Navigate to `http://localhost:3000`
+### Test with Mock Server
 
----
+```bash
+# Start Soniox mock
+node test/mocks/soniox-mock.js &
 
-## 🎯 Usage Guide
-
-### Recording Workflow
-
-1. **Initialize** - Click the purple microphone button
-2. **Grant Permission** - Allow browser microphone access
-3. **Speak** - Watch the visualizer react and text appear
-4. **Stop** - Click the red stop button to finalize
-5. **Copy** - Use the copy button to save your transcript
-
-### Visual Indicators
-
-| Indicator | Meaning |
-|-----------|---------|
-| 🟢 Green Dot | Connected and ready |
-| 🟡 Yellow Dot | Connecting to server |
-| 🔴 Red Dot | Error or disconnected |
-| Pulsing Ring | Active recording |
-| Streaming Cursor | Live transcription in progress |
-
----
-
-## 🔧 Configuration
-
-### Worker Settings
-
-Edit `worker/src/index.js` to customize Soniox parameters:
-
-```javascript
-const config = {
-    api_key: env.SONIOX_API_KEY,
-    model: 'en_v2',              // English model v2
-    audio_format: 'webm_opus',   // Browser-native format
-    sample_rate_hertz: 16000,    // 16kHz sampling
-    num_audio_channels: 1,       // Mono audio
-    include_nonfinal: true       // Enable interim results
-};
+# Run tests (modify WORKER_URL if needed)
+node test/test_integration.js
 ```
 
-### Client Customization
+### Expected Output
 
-Update `client/app.js` to modify:
+```
+============================================================
+VoiceScribe Integration Tests
+============================================================
+Worker URL: ws://localhost:8787/ws
+Test Fixture: test/fixtures/sample-16k-mono.pcm
 
-- **Chunk Size** - `mediaRecorder.start(250)` (default: 250ms)
-- **Worker URL** - `getWorkerUrl()` function for production deployment
-- **Audio Constraints** - `getUserMedia()` configuration
+[Test] Running: WebSocket Connection
+[Test] ✓ PASSED: WebSocket Connection
 
-### Styling
+[Test] Running: Start Message Handling
+[Test] ✓ PASSED: Start Message Handling
 
-The `client/style.css` uses CSS variables for easy theming:
+[Test] Running: Full Transcription Flow
+[Test] Connected, streaming PCM...
+[Test] Sending finalize...
+[Test] Received full transcript
+[Test] ✓ PASSED: Full Transcription Flow
 
-```css
-:root {
-    --color-primary-500: #a855f7;  /* Primary violet */
-    --color-secondary-500: #6366f1; /* Secondary indigo */
-    --color-bg-primary: #0a0a0f;   /* Deep background */
-    /* ... customize 50+ design tokens */
-}
+============================================================
+Test Summary
+============================================================
+Passed: 4
+Failed: 0
+============================================================
 ```
 
 ---
 
 ## 🚢 Deployment
 
-### Deploy to Cloudflare Workers
-
-**1. Authenticate with Cloudflare**
+### Deploy Worker to Cloudflare
 
 ```bash
 cd worker
+
+# Login to Cloudflare
 npx wrangler login
-```
 
-**2. Set Production API Key**
-
-```bash
+# Set API key secret
 npx wrangler secret put SONIOX_API_KEY
-# Paste your API key when prompted
-```
 
-**3. Deploy the Worker**
-
-```bash
+# Deploy
 npx wrangler deploy
 ```
 
-You'll receive a URL like: `https://voicescribe-worker.YOUR_SUBDOMAIN.workers.dev`
+### Deploy Client
 
-**4. Update Client Configuration**
+Host the `client/` folder on any static hosting:
+- Cloudflare Pages
+- Vercel
+- Netlify
+- GitHub Pages
 
-In `client/app.js`, update the production URL:
-
-```javascript
-getWorkerUrl() {
-    const loc = window.location;
-    const isDev = loc.hostname === 'localhost' || loc.hostname === '127.0.0.1';
-    
-    if (isDev) {
-        return 'ws://127.0.0.1:8787/ws';
-    }
-    
-    // Replace with your actual Worker URL
-    return 'wss://voicescribe-worker.YOUR_SUBDOMAIN.workers.dev/ws';
-}
-```
-
-### Deploy Client (Frontend)
-
-Host the `client/` folder on any static hosting service:
-
-**Cloudflare Pages**
-```bash
-cd client
-npx wrangler pages deploy .
-```
-
-**Vercel**
-```bash
-cd client
-vercel --prod
-```
-
-**Netlify**
-```bash
-cd client
-netlify deploy --prod --dir=.
-```
-
-**GitHub Pages**
-```bash
-# Push client/ to gh-pages branch
-git subtree push --prefix client origin gh-pages
-```
+Update `getWorkerUrl()` in `app.js` to point to your deployed worker.
 
 ---
 
-## 🔒 Security Best Practices
+## ⚠️ Important Notes
 
-### API Key Protection
+### Bandwidth Considerations
+- Raw PCM at 16kHz mono 16-bit = **32 KB/s** (vs ~6 KB/s for Opus)
+- Total for 1 minute = ~2 MB upload
+- Consider this for mobile users on metered connections
 
-- ✅ **DO**: Store API keys in Cloudflare Worker secrets
-- ✅ **DO**: Use environment variables for local development
-- ❌ **DON'T**: Hardcode keys in client-side code
-- ❌ **DON'T**: Commit `.dev.vars` to version control
+### Browser Support
+- **AudioWorklet**: Chrome 66+, Firefox 76+, Safari 14.1+, Edge 79+
+- **Fallback**: ScriptProcessorNode for older browsers (deprecated but functional)
 
-### CORS & WebSocket Security
+### Soniox Pricing
+- Soniox charges per audio minute
+- Check current pricing at [soniox.com/pricing](https://soniox.com/pricing)
+- For high-volume usage, contact Soniox for enterprise pricing
 
-The worker implements:
-- WebSocket handshake validation
-- Connection state verification
-- Safe error handling to prevent crashes
-- Graceful degradation on network failures
-
----
-
-## 🐛 Troubleshooting
-
-<details>
-<summary><b>🔴 "Microphone access denied"</b></summary>
-
-**Solution**: Check browser permissions in Settings → Privacy → Microphone, and ensure HTTPS/localhost is used.
-</details>
-
-<details>
-<summary><b>🟡 "Connection to server failed"</b></summary>
-
-**Solution**: 
-- Verify worker is running: `npm run dev` in `worker/` directory
-- Check if port 8787 is available
-- Ensure firewall isn't blocking WebSocket connections
-</details>
-
-<details>
-<summary><b>🔴 "SONIOX_API_KEY not configured"</b></summary>
-
-**Solution**: 
-```bash
-# For local development
-echo "SONIOX_API_KEY=your_key" > worker/.dev.vars
-
-# For production
-cd worker
-npx wrangler secret put SONIOX_API_KEY
-```
-</details>
-
-<details>
-<summary><b>🟢 No transcript appearing</b></summary>
-
-**Solution**: 
-- Open browser DevTools (F12) → Console tab
-- Check for WebSocket errors
-- Verify Soniox API key is valid at [soniox.com](https://soniox.com)
-- Ensure microphone is producing audio (check visualizer)
-</details>
-
-<details>
-<summary><b>⚠️ "Failed to connect to transcription service"</b></summary>
-
-**Solution**: 
-- Verify internet connectivity
-- Check Soniox API status
-- Review worker logs: `npx wrangler tail`
-</details>
+### Security
+- Never expose `SONIOX_API_KEY` in client code
+- Worker acts as secure proxy
+- All audio data in transit is encrypted (WSS)
 
 ---
 
-## 📊 Performance Metrics
+## 🔧 Configuration
 
-| Metric | Value |
-|--------|-------|
-| **Latency (Edge)** | <100ms |
-| **Accuracy** | >95% (Soniox en_v2) |
-| **Chunk Size** | 250ms |
-| **Sample Rate** | 16kHz |
-| **Browser Support** | Chrome 60+, Firefox 55+, Safari 14+ |
+### Worker Environment Variables
 
----
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `SONIOX_API_KEY` | Yes | Your Soniox API key |
 
-## 🤝 Contributing
+### Client Configuration
 
-Contributions are welcome! Here's how you can help:
-
-1. **Fork the repository**
-2. **Create a feature branch** (`git checkout -b feature/amazing-feature`)
-3. **Commit your changes** (`git commit -m 'Add amazing feature'`)
-4. **Push to the branch** (`git push origin feature/amazing-feature`)
-5. **Open a Pull Request**
-
-### Development Guidelines
-
-- Follow existing code style (Prettier config coming soon)
-- Add comments for complex logic
-- Test on multiple browsers
-- Update documentation for new features
+Edit `app.js` to customize:
+- `targetSampleRate`: Default 16000 Hz
+- `maxReconnectAttempts`: Default 5
+- `getWorkerUrl()`: Worker endpoint
 
 ---
 
-## 📄 License
+## 📝 License
 
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
 ## 🙏 Acknowledgments
 
-- **[Soniox AI](https://soniox.com/)** - Cutting-edge speech recognition API
-- **[Cloudflare Workers](https://workers.cloudflare.com/)** - Edge computing platform
-- **Web Audio API** - Browser audio processing
-- **WebSocket API** - Real-time bidirectional communication
-
----
-
-## 📞 Support & Contact
-
-<div align="center">
-
-**Built with ❤️ by [Kunal Shaw](https://github.com/KUNALSHAWW)**
-
-[![GitHub](https://img.shields.io/badge/GitHub-KUNALSHAWW-181717?style=for-the-badge&logo=github)](https://github.com/KUNALSHAWW)
-[![Repository](https://img.shields.io/badge/Repository-VoiceScribe-violet?style=for-the-badge&logo=github)](https://github.com/KUNALSHAWW/VoiceScribe)
-
-If you find this project helpful, please ⭐ star the repository!
-
-</div>
-
----
-
-<div align="center">
-
-### 🚀 Ready to transcribe? [Get Started](#-quick-start)
-
-</div>
+- [Soniox](https://soniox.com) - Speech recognition API
+- [Cloudflare Workers](https://workers.cloudflare.com) - Edge computing platform
+- [Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API) - Browser audio processing
